@@ -3,7 +3,7 @@ import UploadBox from './components/UploadBox'
 import PreviewImage from './components/PreviewImage'
 import ResultPanel from './components/ResultPanel'
 import Loader from './components/Loader'
-import { analyzeImage, convertImageToBase64 } from './services/geminiService'
+import { analyzeImage, convertImageToBase64, listAvailableModels } from './services/geminiService'
 
 function App() {
   const [image, setImage] = useState(null)
@@ -46,6 +46,10 @@ function App() {
     setError(null)
 
     try {
+      // Debug: Check available models
+      const models = await listAvailableModels()
+      console.log('Available models:', models)
+      
       const imageBase64 = await convertImageToBase64(image)
       const analysisResult = await analyzeImage(imageBase64)
       setResult(analysisResult)

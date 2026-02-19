@@ -1,62 +1,85 @@
 import { buildPrompt } from '../utils/promptBuilder.js'
 
+export async function listAvailableModels() {
+  const API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY
+  
+  try {
+    const response = await fetch(
+      'https://openrouter.ai/api/v1/models',
+      {
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`
+        }
+      }
+    )
+    const data = await response.json()
+    console.log('Available models:', data.data?.map(m => m.id))
+    return data.data
+  } catch (error) {
+    console.error('Error fetching models:', error)
+    return []
+  }
+}
+
 export async function analyzeImage(imageBase64) {
-  const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
+  const API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY
   
   if (!API_KEY) {
-    throw new Error('Gemini API key is missing. Please set VITE_GEMINI_API_KEY in your environment variables.')
+    throw new Error('OpenRouter API key is missing. Please set VITE_OPENROUTER_API_KEY in your environment variables.')
   }
 
   const prompt = buildPrompt()
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,
+      'https://openrouter.ai/api/v1/chat/completions',
       {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'Identity Architect'
         },
         body: JSON.stringify({
-          contents: [
+          model: 'openai/gpt-4o-mini',
+          messages: [
             {
-              parts: [
+              role: 'user',
+              content: [
                 {
+                  type: 'text',
                   text: prompt
                 },
                 {
-                  inline_data: {
-                    mime_type: "image/jpeg",
-                    data: imageBase64
+                  type: 'image_url',
+                  image_url: {
+                    url: `data:image/jpeg;base64,${imageBase64}`
                   }
                 }
               ]
             }
           ],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 2048,
-          }
+          temperature: 0.7,
+          max_tokens: 2048
         })
       }
     )
 
     if (!response.ok) {
       const errorData = await response.json()
-      throw new Error(`Gemini API Error: ${errorData.error?.message || response.statusText}`)
+      throw new Error(`OpenRouter API Error: ${errorData.error?.message || response.statusText}`)
     }
 
     const data = await response.json()
     
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      throw new Error('Invalid response from Gemini API')
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      throw new Error('Invalid response from OpenRouter API')
     }
 
-    return data.candidates[0].content.parts[0].text
+    return data.choices[0].message.content
   } catch (error) {
-    console.error('Gemini API Error:', error)
+    console.error('OpenRouter API Error:', error)
     throw error
   }
 }
